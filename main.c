@@ -58,7 +58,7 @@ void execute(char**argv) {
     if (argv[0] == NULL) {
         return;
     }
-    
+
     if (strcmp(argv[0], "cd") == 0 && argv[1] != NULL) {
         if (chdir(argv[1]) != 0) {
             perror("Failed to change directory");
@@ -92,8 +92,11 @@ int main(void) {
     int ret = 0;
 
     while (1) {
-        printf("$ ");
+        char *pwd = getcwd(NULL, 0);
+        printf("%s $ ", pwd);
+        free(pwd);
         fflush(stdout);
+
         ret = getline(&line, &len, stdin);
         if (ret == -1) {
             if (ferror(stdin)) {
