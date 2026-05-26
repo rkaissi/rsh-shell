@@ -1,8 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 
-void *Malloc(int size) {
+void *Malloc(size_t size) {
     void *ptr;
 
     if (size == 0) return NULL;
@@ -14,7 +17,7 @@ void *Malloc(int size) {
     return ptr;
 }
 
-void *Realloc(void *block, int size) {
+void *Realloc(void *block, size_t size) {
     void *ptr;
 
     if (size == 0) return NULL;
@@ -58,15 +61,36 @@ int main(void) {
 
     while (1) {
         printf("$ ");
-        fflush(stdin);
+        fflush(stdout);
         ret = getline(&line, &len, stdin);
-        if (ret == -1) exit(EXIT_FAILURE);
+        if (ret == -1) {
+            if (ferror(stdin)) {
+                perror("Error!");
+                exit(EXIT_FAILURE);
+            } else if (feof(stdin)) {
+                printf("\nlogout\n");
+                break;
+            }
+        }
 
         char **argv = split_line(line);
 
-        for (int i = 0; argv[i] != NULL; i++) {
-            printf("%s\n", argv[i]);
+        int pid = fork();
+        int status;
+
+        if (pid == 0) { // child
+            execvp(argv[0], argv);
+            perror(argv[0]);
+            exit(EXIT_FAILURE);
+        } else if (pid == -1) { // fork failed
+            perror("Failed to run process");
+        } else { // parent, pid = child's pid
+            waitpid(pid, &status, 0);
+            if (!WIFEXITED(status)) {
+                perror("Process termination error");
+            }
         }
+
         free(argv);
     }
     
