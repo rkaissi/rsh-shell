@@ -54,6 +54,38 @@ char **split_line(char *line) {
     return tokens;
 }
 
+void execute(char**argv) {
+    if (argv[0] == NULL) {
+        return;
+    }
+    
+    if (strcmp(argv[0], "cd") == 0 && argv[1] != NULL) {
+        if (chdir(argv[1]) != 0) {
+            perror("Failed to change directory");
+        }
+        return;
+    } else if (strcmp(argv[0], "exit") == 0) {
+        printf("\nexit");
+        exit(EXIT_SUCCESS);
+    }
+
+    pid_t pid = fork();
+    int status;
+
+    if (pid == 0) { // child
+        execvp(argv[0], argv);
+        perror(argv[0]);
+        exit(EXIT_FAILURE);
+    } else if (pid == -1) { // fork failed
+        perror("Failed to run process");
+    } else { // parent, pid = child's pid
+        waitpid(pid, &status, 0);
+        if (!WIFEXITED(status)) {
+            perror("Process termination error");
+        }
+    }
+}
+
 int main(void) {
     char *line = NULL;
     size_t len = 0;
@@ -74,23 +106,7 @@ int main(void) {
         }
 
         char **argv = split_line(line);
-
-        int pid = fork();
-        int status;
-
-        if (pid == 0) { // child
-            execvp(argv[0], argv);
-            perror(argv[0]);
-            exit(EXIT_FAILURE);
-        } else if (pid == -1) { // fork failed
-            perror("Failed to run process");
-        } else { // parent, pid = child's pid
-            waitpid(pid, &status, 0);
-            if (!WIFEXITED(status)) {
-                perror("Process termination error");
-            }
-        }
-
+        execute(argv);
         free(argv);
     }
     
