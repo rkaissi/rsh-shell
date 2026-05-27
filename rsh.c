@@ -9,8 +9,13 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 #define DELIM " \t\r\n\a"
 #define BUFFERSIZE 64
+
+char HISTORY_PATH[256];
 
 char **split_line(char *line) {
     int bufferSize = BUFFERSIZE;
@@ -50,6 +55,7 @@ bool check_builtins(char**argv) {
         return true;
     } else if (strcmp(argv[0], "exit") == 0) {
         printf(RED"[Exit]\n"RST);
+        write_history(HISTORY_PATH);
         exit(EXIT_SUCCESS);
     }
 
@@ -113,6 +119,7 @@ void execute_pipeline(char ***commands, int commandCount) {
             char **argv = commands[i];
             execvp(argv[0], argv);
             err(argv[0]);
+            write_history(HISTORY_PATH);
             exit(EXIT_FAILURE);
         } else if (pid == -1) { // fork failed
             err("Failed to run process");
@@ -145,28 +152,35 @@ void print_banner() {
 }
 
 int main(void) {
-    char *line = NULL;
-    size_t len = 0;
-
     print_banner();
+
+    // Configure readline to auto-complete paths when the tab key is hit
+    rl_bind_key('\t', rl_complete);
+
+    // Enable history and read from file
+    snprintf(HISTORY_PATH, sizeof(HISTORY_PATH), "%s" HISTORY_FILE, getenv("HOME"));
+
+    using_history();
+    stifle_history(1000);
+    read_history(HISTORY_PATH);
 
     while (1) {
         char *pwd = getcwd(NULL, 0);
-        printf(GREEN"%s $ "RST, pwd);
+        char prompt[strlen(pwd) + 32];
+        snprintf(prompt, sizeof(prompt), GREEN"%s $ "RST, pwd);
         free(pwd);
-        fflush(stdout);
 
-        if (getline(&line, &len, stdin) == -1) {
-            if (ferror(stdin)) {
-                err("Error");
-                exit(EXIT_FAILURE);
-            } else if (feof(stdin)) {
-                printf(RED"[Exit]\n"RST);
-                break;
-            }
+        char *input = readline(prompt);
+
+        // Check for EOF
+        if (!input) {
+            printf(RED "[Exit]\n" RST);
+            break;
         }
 
-        char **tokens = split_line(line);
+        add_history(input);
+
+        char **tokens = split_line(input);
 
         size_t commandCount;
         char ***commands = split_pipes(tokens, &commandCount);
@@ -185,8 +199,9 @@ int main(void) {
         
         free(tokens);
         free(commands);
+        free(input);
     }
-    
-    free(line);
+
+    write_history(HISTORY_PATH);
     return EXIT_SUCCESS;
 }
