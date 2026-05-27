@@ -12,9 +12,6 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#define DELIM " \t\r\n\a"
-#define BUFFERSIZE 64
-
 char HISTORY_PATH[256];
 
 char **split_line(char *line) {
