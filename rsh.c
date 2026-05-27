@@ -45,7 +45,7 @@ bool check_builtins(char**argv) {
         }
 
         if (chdir(argv[1]) != 0) {
-            perror("Failed to change directory");
+            err(argv[1]);
         }
         return true;
     } else if (strcmp(argv[0], "exit") == 0) {
@@ -112,10 +112,10 @@ void execute_pipeline(char ***commands, int commandCount) {
 
             char **argv = commands[i];
             execvp(argv[0], argv);
-            perror(argv[0]);
+            err(argv[0]);
             exit(EXIT_FAILURE);
         } else if (pid == -1) { // fork failed
-            perror("Failed to run process");
+            err("Failed to run process");
         } else { // parent, pid = child's pid
             pids[i] = pid;
             continue;
@@ -128,7 +128,7 @@ void execute_pipeline(char ***commands, int commandCount) {
     for (int i = 0; i < commandCount; i++) {
         waitpid(pids[i], &status, 0);
         if (!WIFEXITED(status)) {
-            perror("Process termination error");
+            err("Process termination error");
         }
     }
 }
@@ -158,7 +158,7 @@ int main(void) {
 
         if (getline(&line, &len, stdin) == -1) {
             if (ferror(stdin)) {
-                perror("Error!");
+                err("Error");
                 exit(EXIT_FAILURE);
             } else if (feof(stdin)) {
                 printf(RED"[Exit]\n"RST);

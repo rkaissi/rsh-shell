@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #define RST     "\033[0m"
 
@@ -29,5 +30,7 @@
 
 void *Malloc(size_t size);
 void *Realloc(void *block, size_t size);
+
+void err(const char *msg);
 
 #endif
