@@ -67,7 +67,7 @@ bool check_builtins(char**argv) {
         return true;
     }
     
-    if (strcmp(argv[0], "alias") == 0) {
+    if (strcmp(argv[0], "alias") == 0 && argv[1] != NULL) {
         if (alias_count >= 256) {
             printf(RED"Exceeded max alias count of %d\n"RST, MAX_ALIAS_COUNT);
             return true;
@@ -83,17 +83,32 @@ bool check_builtins(char**argv) {
         char *key = argv[1];
         char *val = delimPtr + 1;
 
+        for (int i = 0; i < alias_count; i++) {
+            if (aliases[i].key && strcmp(aliases[i].key, argv[1]) == 0) {
+                free(aliases[i].key);
+                free(aliases[i].value);
+                aliases[i] = (Alias){strdup(key), strdup(val)};
+                return true;
+            }
+        }
+
         aliases[alias_count++] = (Alias){strdup(key), strdup(val)};
         return true;
     }
 
     if (strcmp(argv[0], "unalias") == 0 && argv[1] != NULL) {
         for (int i = 0; i < alias_count; i++) {
-            if (strcmp(argv[1], "-a") == 0 || strcmp(aliases[i].key, argv[1]) == 0) {
+            if (strcmp(argv[1], "-a") == 0) {
                 free(aliases[i].key);
                 free(aliases[i].value);
-                aliases[i].key = NULL;
-                aliases[i].value = NULL;
+            }
+
+            if (aliases[i].key && strcmp(aliases[i].key, argv[1]) == 0) {
+                for (int j = i; j < alias_count - 1; j++) {
+                    aliases[j] = aliases[j + 1];
+                }
+                alias_count--;
+                return true;
             }
         }
 
