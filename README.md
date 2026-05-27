@@ -3,6 +3,6 @@
 Shell created in C
 
 ```bash
-gcc -Wall -Wextra -o rsh rsh.c utils.c
+gcc rsh.c utils.c -lreadline -o rsh
 ./rsh
 ```
