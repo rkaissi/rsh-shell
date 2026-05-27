@@ -154,10 +154,22 @@ void execute_pipeline(char ***commands, int commandCount) {
     }
 }
 
+void print_banner() {
+    printf("\n"
+           "██████╗ ███████╗██╗  ██╗\n"
+           "██╔══██╗██╔════╝██║  ██║\n"
+           "██████╔╝███████╗███████║\n"
+           "██╔══██╗╚════██║██╔══██║\n"
+           "██║  ██║███████║██║  ██║\n"
+           "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝\n"
+           "\n");
+}
+
 int main(void) {
     char *line = NULL;
     size_t len = 0;
-    int ret = 0;
+
+    print_banner();
 
     while (1) {
         char *pwd = getcwd(NULL, 0);
@@ -165,13 +177,12 @@ int main(void) {
         free(pwd);
         fflush(stdout);
 
-        ret = getline(&line, &len, stdin);
-        if (ret == -1) {
+        if (getline(&line, &len, stdin) == -1) {
             if (ferror(stdin)) {
                 perror("Error!");
                 exit(EXIT_FAILURE);
             } else if (feof(stdin)) {
-                printf("\nlogout\n");
+                printf("\nexit\n");
                 break;
             }
         }
