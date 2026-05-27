@@ -1,3 +1,6 @@
+#include "rsh.h"
+#include "utils.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -5,30 +8,6 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <stdbool.h>
-
-void *Malloc(size_t size) {
-    void *ptr;
-
-    if (size == 0) return NULL;
-    ptr = malloc(size);
-    if (ptr == NULL) {
-        perror("Malloc Failed");
-        exit(EXIT_FAILURE);
-    }
-    return ptr;
-}
-
-void *Realloc(void *block, size_t size) {
-    void *ptr;
-
-    if (size == 0) return NULL;
-    ptr = realloc(block, size);
-    if (ptr == NULL) {
-        perror("Realloc Failed");
-        exit(EXIT_FAILURE);
-    }
-    return ptr;
-} 
 
 #define DELIM " \t\r\n\a"
 #define BUFFERSIZE 64
@@ -70,7 +49,7 @@ bool check_builtins(char**argv) {
         }
         return true;
     } else if (strcmp(argv[0], "exit") == 0) {
-        printf("\nexit");
+        printf(RED"[Exit]\n"RST);
         exit(EXIT_SUCCESS);
     }
 
@@ -155,14 +134,14 @@ void execute_pipeline(char ***commands, int commandCount) {
 }
 
 void print_banner() {
-    printf("\n"
+    printf(BLUE"\n"
            "██████╗ ███████╗██╗  ██╗\n"
            "██╔══██╗██╔════╝██║  ██║\n"
            "██████╔╝███████╗███████║\n"
            "██╔══██╗╚════██║██╔══██║\n"
            "██║  ██║███████║██║  ██║\n"
            "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝\n"
-           "\n");
+           "\n"RST);
 }
 
 int main(void) {
@@ -173,7 +152,7 @@ int main(void) {
 
     while (1) {
         char *pwd = getcwd(NULL, 0);
-        printf("%s $ ", pwd);
+        printf(GREEN"%s $ "RST, pwd);
         free(pwd);
         fflush(stdout);
 
@@ -182,7 +161,7 @@ int main(void) {
                 perror("Error!");
                 exit(EXIT_FAILURE);
             } else if (feof(stdin)) {
-                printf("\nexit\n");
+                printf(RED"[Exit]\n"RST);
                 break;
             }
         }
