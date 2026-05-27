@@ -12,7 +12,15 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-char HISTORY_PATH[256];
+// TODO: Add custom tokenization to support quotes (strip quotes, but keep together disregarding space)
+// e.g. cd "C Projects" -> ["cd", "C Projects"] or alias ll="ls -l" -> ["alias", "ll=ls -l"]
+// Potentially free aliases and use custom hashmap instead
+// Add support for multiline commands with backslash at end (newline starts with "> ")
+
+char HISTORY_PATH[HISTORY_PATH_BUFFERSIZE];
+
+Alias aliases[MAX_ALIAS_COUNT];
+int alias_count = 0;
 
 char **split_line(char *line) {
     int bufferSize = BUFFERSIZE;
@@ -50,10 +58,49 @@ bool check_builtins(char**argv) {
             err(argv[1]);
         }
         return true;
-    } else if (strcmp(argv[0], "exit") == 0) {
+    }
+    
+    if (strcmp(argv[0], "exit") == 0) {
         printf(RED"[Exit]\n"RST);
         write_history(HISTORY_PATH);
         exit(EXIT_SUCCESS);
+        return true;
+    }
+    
+    if (strcmp(argv[0], "alias") == 0) {
+        if (alias_count >= 256) {
+            printf(RED"Exceeded max alias count of %d\n"RST, MAX_ALIAS_COUNT);
+            return true;
+        }
+
+        char *delimPtr = strchr(argv[1], '=');
+
+        if (delimPtr == NULL) {
+            printf(RED"Alias not assigned correctly\n"RST);
+            return true;
+        }
+        *delimPtr = '\0';
+        char *key = argv[1];
+        char *val = delimPtr + 1;
+
+        aliases[alias_count++] = (Alias){strdup(key), strdup(val)};
+        return true;
+    }
+
+    if (strcmp(argv[0], "unalias") == 0 && argv[1] != NULL) {
+        for (int i = 0; i < alias_count; i++) {
+            if (strcmp(argv[1], "-a") == 0 || strcmp(aliases[i].key, argv[1]) == 0) {
+                free(aliases[i].key);
+                free(aliases[i].value);
+                aliases[i].key = NULL;
+                aliases[i].value = NULL;
+            }
+        }
+
+        if (strcmp(argv[1], "-a") == 0)
+            alias_count = 0;
+        
+        return true;
     }
 
     return false;
@@ -178,6 +225,12 @@ int main(void) {
         char *expanded;
         int result = history_expand(input, &expanded);
 
+        // Expanded
+        if (result == 1) {
+            printf(YELLOW"%s\n"RST, expanded);
+            fflush(stdout);
+        }
+
         // Error expanding
         if (result == -1) {
             err(expanded);  // expanded contains the error message in this case
@@ -197,6 +250,12 @@ int main(void) {
         add_history(expanded);
 
         char **tokens = split_line(expanded);
+
+        for (int i = 0; i < alias_count; i++) {
+            if (aliases[i].key && strcmp(tokens[0], aliases[i].key) == 0) {
+                tokens[0] = strdup(aliases[i].value);
+            }
+        }
 
         size_t commandCount;
         char ***commands = split_pipes(tokens, &commandCount);
