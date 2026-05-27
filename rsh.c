@@ -175,9 +175,28 @@ int main(void) {
             break;
         }
 
-        add_history(input);
+        char *expanded;
+        int result = history_expand(input, &expanded);
 
-        char **tokens = split_line(input);
+        // Error expanding
+        if (result == -1) {
+            err(expanded);  // expanded contains the error message in this case
+            free(expanded);
+            free(input);
+            continue;
+        }
+
+        // Display only (e.g. user typed :p suffix), don't execute
+        if (result == 2) {
+            printf("%s\n", expanded);
+            free(expanded);
+            free(input);
+            continue;
+        }
+
+        add_history(expanded);
+
+        char **tokens = split_line(expanded);
 
         size_t commandCount;
         char ***commands = split_pipes(tokens, &commandCount);
@@ -196,6 +215,7 @@ int main(void) {
         
         free(tokens);
         free(commands);
+        free(expanded);
         free(input);
     }
 
