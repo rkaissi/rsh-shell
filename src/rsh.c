@@ -13,11 +13,17 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-// Potentially free aliases and use custom hashmap instead
-// Add support for multiline commands with backslash at end (newline starts with "> ")
+// TODO:
+/*
+* Potentially free aliases and use custom hashmap instead
+* Add support for multiline commands with backslash at end (newline starts with "> ")
+* Add support for environment variable expansion (like $USER or $?)
+* Add support for I/O redirection (>, <, >>)
+* Implement ~ (tilde) expanding to $HOME
+*/
+
 
 char HISTORY_PATH[HISTORY_PATH_BUFFERSIZE];
-char RSHRC_PATH[RSHRC_PATH_BUFFERSIZE];
 
 Alias aliases[MAX_ALIAS_COUNT];
 int alias_count = 0;
@@ -38,6 +44,10 @@ char **tokenize(char *line, size_t *tokenCount) {
 
     for (size_t i = 0; i < lineLen; i++) {
         char c = line[i];
+
+        // Ignore comments if outside quotes and first char of word to support `echo hello#world`
+        if (c == '#' && !withinQuotes && tokenBufferLen == 0)
+            break;
 
         if (c == '\'' || c == '"') {
             if (withinQuotes && c == lastQuote) {
@@ -325,6 +335,23 @@ void execute_line(char *line) {
     free(commands);
 }
 
+void load_rshrc(char *path) {
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL)
+        return;
+    
+    char *line = NULL;
+    size_t len = 0;
+    while (getline(&line, &len, fp) != -1) {
+        if (!line || strspn(line, DELIM) == strlen(line))
+            continue;
+        
+        execute_line(line);
+    }
+    free(line);
+    fclose(fp);
+}
+
 int main(void) {
     int interactive = isatty(STDIN_FILENO);
 
@@ -336,11 +363,14 @@ int main(void) {
 
         // Enable history and read from file
         snprintf(HISTORY_PATH, sizeof(HISTORY_PATH), "%s" HISTORY_FILE, getenv("HOME"));
-        snprintf(RSHRC_PATH, sizeof(RSHRC_PATH), "%s" RSHRC_FILE, getenv("HOME"));
-
         using_history();
         stifle_history(1000);
         read_history(HISTORY_PATH);
+
+        // Run .rshrc file on startup if it exists
+        char rshrcPath[RSHRC_PATH_BUFFERSIZE];
+        snprintf(rshrcPath, sizeof(rshrcPath), "%s" RSHRC_FILE, getenv("HOME"));
+        load_rshrc(rshrcPath);
     }
 
     while (1) {
