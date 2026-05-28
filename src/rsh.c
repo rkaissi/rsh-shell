@@ -20,6 +20,8 @@
 * Add support for environment variable expansion (like $USER or $?)
 * Add support for I/O redirection (>, <, >>)
 * Implement ~ (tilde) expanding to $HOME
+* Syntax highlighting using rl_redisplay_function (optional)
+* Custom prompt with git branch (e.g. "~/projects/rsh (main) $")
 */
 
 
