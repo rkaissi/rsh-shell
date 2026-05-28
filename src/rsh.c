@@ -72,6 +72,15 @@ char **tokenize(char *line, size_t *tokenCount) {
             continue;
         }
 
+        if (tokenBufferLen >= TOKEN_BUFFERSIZE - 1) {
+            err("Buffer Overflow: Token too long");
+            for (size_t j = 0; j < *tokenCount; j++) {
+                free(tokens[j]);
+            }
+            free(tokens);
+            return NULL; 
+        }
+
         tokenBuffer[tokenBufferLen++] = c;
     }
 
@@ -136,13 +145,22 @@ bool check_builtins(char**argv) {
     }
 
     if (strcmp(argv[0], "unalias") == 0 && argv[1] != NULL) {
-        for (int i = 0; i < alias_count; i++) {
-            if (strcmp(argv[1], "-a") == 0) {
+        // Unalias all
+        if (strcmp(argv, "-a") == 0) {
+            for (int i = 0; i < alias_count; i++) {
                 free(aliases[i].key);
                 free(aliases[i].value);
             }
+            alias_count = 0;
+            return true;
+        }
 
-            if (aliases[i].key && strcmp(aliases[i].key, argv[1]) == 0) {
+        // Unalias specific
+        for (int i = 0; i < alias_count; i++) {
+            if (aliases[i].key && strcmp(aliases[i].key, argv) == 0) {
+                free(aliases[i].key);
+                free(aliases[i].value);
+                
                 for (int j = i; j < alias_count - 1; j++) {
                     aliases[j] = aliases[j + 1];
                 }
@@ -150,9 +168,6 @@ bool check_builtins(char**argv) {
                 return true;
             }
         }
-
-        if (strcmp(argv[1], "-a") == 0)
-            alias_count = 0;
         
         return true;
     }
@@ -249,6 +264,11 @@ void execute_line(char *line) {
     size_t baseTokenCount = 0;
     char **baseTokens = tokenize(line, &baseTokenCount);
 
+    if (baseTokenCount == 0) {
+        free(baseTokens);
+        return;
+    }
+
     char **tokens = baseTokens;
     int tokenCount = baseTokenCount;
 
@@ -263,7 +283,9 @@ void execute_line(char *line) {
                 tokens[j] = aliasTokens[j];
             }
 
-            for (int j = 1; j < baseTokenCount; j++) { // skip alias in tokens[0]
+            free(baseTokens[0]);
+
+            for (int j = 1; j < baseTokenCount; j++) { // skip alias in baseTokens[0]
                 tokens[aliasTokenCount + j - 1] = baseTokens[j];
             }
 
