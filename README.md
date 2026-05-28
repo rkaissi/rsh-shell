@@ -41,5 +41,12 @@ make clean
 ## Usage
 
 ```bash
-./rsh
+make        # build
+make run    # build and run
+```
+
+Or run directly:
+
+```bash
+./build/rsh
 ```

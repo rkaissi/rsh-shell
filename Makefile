@@ -1,27 +1,28 @@
 CC      = gcc
-CFLAGS  = -Wall -Wextra
 LIBS    = -lreadline
-TARGET  = rsh
+TARGET  = build/rsh
+SRCS    = src/rsh.c src/utils.c
+OBJS    = $(patsubst src/%.c, build/%.o, $(SRCS))
 
 ifdef DEBUG
-    CFLAGS += -g
+    CFLAGS = -Wall -Wextra -g -Iinclude
 else
-    CFLAGS  = -O2
+    CFLAGS = -O2 -Iinclude
 endif
-
-SRCS    = rsh.c utils.c
-OBJS    = $(SRCS:.c=.o)
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) $(LIBS) -o $(TARGET)
 
-rsh.o: rsh.c rsh.h utils.h
-	$(CC) $(CFLAGS) -c rsh.c
+build/%.o: src/%.c | build
+	$(CC) $(CFLAGS) -c $< -o $@
 
-utils.o: utils.c utils.h
-	$(CC) $(CFLAGS) -c utils.c
+build:
+	mkdir -p build
+
+run: $(TARGET)
+	./$(TARGET)
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -rf build
 
-.PHONY: clean
+.PHONY: clean run
