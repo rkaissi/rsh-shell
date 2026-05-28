@@ -17,6 +17,7 @@
 // Add support for multiline commands with backslash at end (newline starts with "> ")
 
 char HISTORY_PATH[HISTORY_PATH_BUFFERSIZE];
+char RSHRC_PATH[RSHRC_PATH_BUFFERSIZE];
 
 Alias aliases[MAX_ALIAS_COUNT];
 int alias_count = 0;
@@ -79,7 +80,6 @@ char **tokenize(char *line, size_t *tokenCount) {
         tokens[(*tokenCount)++] = strdup(tokenBuffer);
     }
 
-    tokens[*tokenCount] = NULL;
     return tokens;
 }
 
@@ -166,9 +166,9 @@ char ***split_pipes(char **tokens, size_t tokenCount, size_t *commandCount) {
     char ***commands = Malloc(bufferSize * sizeof(char **));
     
     for (size_t i = 0; i < tokenCount; i++) {
-        char **argv = Malloc(16 * sizeof(char *));
+        char **argv = Malloc(TOKEN_BUFFERSIZE * sizeof(char *));
         size_t j = 0;
-        for (; tokens[i] != NULL && strcmp(tokens[i], "|") != 0; j++, i++) {
+        for (; i < tokenCount && strcmp(tokens[i], "|") != 0; j++, i++) {
             argv[j] = tokens[i];
         }
         argv[j] = NULL;
@@ -245,6 +245,57 @@ void print_banner() {
            "\n"RST);
 }
 
+void execute_line(char *line) {
+    size_t baseTokenCount = 0;
+    char **baseTokens = tokenize(line, &baseTokenCount);
+
+    char **tokens = baseTokens;
+    int tokenCount = baseTokenCount;
+
+    for (int i = 0; i < alias_count; i++) {
+        if (aliases[i].key && strcmp(baseTokens[0], aliases[i].key) == 0) {
+            size_t aliasTokenCount;
+            char **aliasTokens = tokenize(aliases[i].value, &aliasTokenCount);
+            tokenCount = baseTokenCount + aliasTokenCount - 1;
+            tokens = Malloc(tokenCount * sizeof(char *));
+
+            for (int j = 0; j < aliasTokenCount; j++) {
+                tokens[j] = aliasTokens[j];
+            }
+
+            for (int j = 1; j < baseTokenCount; j++) { // skip alias in tokens[0]
+                tokens[aliasTokenCount + j - 1] = baseTokens[j];
+            }
+
+            free(baseTokens);
+            free(aliasTokens);
+            break;
+        }
+    }
+
+    size_t commandCount = 0;
+    char ***commands = split_pipes(tokens, tokenCount, &commandCount);
+
+    bool handled = false;
+
+    if (commandCount == 1)
+        handled = check_builtins(commands[0]);
+
+    if (!handled)
+        execute_pipeline(commands, commandCount);
+
+    for (int i = 0; i < commandCount; i++) {
+        free(commands[i]);
+    }
+
+    for (int i = 0; i < tokenCount; i++) {
+        free(tokens[i]);
+    }
+    
+    free(tokens);
+    free(commands);
+}
+
 int main(void) {
     int interactive = isatty(STDIN_FILENO);
 
@@ -256,6 +307,7 @@ int main(void) {
 
         // Enable history and read from file
         snprintf(HISTORY_PATH, sizeof(HISTORY_PATH), "%s" HISTORY_FILE, getenv("HOME"));
+        snprintf(RSHRC_PATH, sizeof(RSHRC_PATH), "%s" RSHRC_FILE, getenv("HOME"));
 
         using_history();
         stifle_history(1000);
@@ -289,10 +341,17 @@ int main(void) {
             break;
         }
 
+        // Empty line (only space)
+        if (strspn(input, DELIM) == strlen(input)) {
+            free(input);
+            continue;
+        }
+
         char *expanded = input;
 
         if (interactive) {
             int result = history_expand(input, &expanded);
+            free(input);
 
             // Expanded
             if (result == 1) {
@@ -304,7 +363,6 @@ int main(void) {
             if (result == -1) {
                 err(expanded);  // expanded contains the error message in this case
                 free(expanded);
-                free(input);
                 continue;
             }
 
@@ -312,68 +370,15 @@ int main(void) {
             if (result == 2) {
                 printf("%s\n", expanded);
                 free(expanded);
-                free(input);
                 continue;
             }
 
             add_history(expanded);
         }
 
-        size_t baseTokenCount = 0;
-        char **baseTokens = tokenize(expanded, &baseTokenCount);
+        execute_line(expanded);
 
-        char **tokens = baseTokens;
-        int tokenCount = baseTokenCount;
-
-        if (tokens[0] == NULL) {
-            free(tokens);
-            free(expanded);
-            free(input);
-            continue;
-        }
-
-        for (int i = 0; i < alias_count; i++) {
-            if (aliases[i].key && strcmp(baseTokens[0], aliases[i].key) == 0) {
-                size_t aliasTokenCount;
-                char **aliasTokens = tokenize(aliases[i].value, &aliasTokenCount);
-                tokenCount = baseTokenCount + aliasTokenCount;
-                tokens = Malloc(tokenCount * sizeof(char *));
-
-                for (int j = 0; j < aliasTokenCount; j++) {
-                    tokens[j] = aliasTokens[j];
-                }
-
-                for (int j = 1; j < baseTokenCount; j++) { // skip alias in tokens[0]
-                    tokens[aliasTokenCount + j - 1] = baseTokens[j];
-                }
-
-                tokens[tokenCount - 1] = NULL;
-
-                free(baseTokens);
-                free(aliasTokens);
-                break;
-            }
-        }
-
-        size_t commandCount = 0;
-        char ***commands = split_pipes(tokens, tokenCount, &commandCount);
-
-        bool handled = false;
-
-        if (commandCount == 1)
-            handled = check_builtins(commands[0]);
-
-        if (!handled)
-            execute_pipeline(commands, commandCount);
-
-        for (int i = 0; i < commandCount; i++) {
-            free(commands[i]);
-        }
-        
-        free(tokens);
-        free(commands);
-        if (expanded != input) free(expanded);
-        free(input);
+        free(expanded);
     }
 
     if (interactive)
