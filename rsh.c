@@ -1,6 +1,7 @@
 #include "rsh.h"
 #include "utils.h"
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,25 +23,65 @@ char HISTORY_PATH[HISTORY_PATH_BUFFERSIZE];
 Alias aliases[MAX_ALIAS_COUNT];
 int alias_count = 0;
 
-char **split_line(char *line) {
-    int bufferSize = BUFFERSIZE;
+char **tokenize(char *line, size_t *tokenCount) {
+    *tokenCount = 0;
+    size_t lineLen = strlen(line);
+
+    int bufferSize = MIN_LISTSIZE;
+    
     char **tokens = Malloc(bufferSize * sizeof(char *));
-    char *token;
-    int pos = 0;
 
-    token = strtok(line, DELIM);
+    char tokenBuffer[TOKEN_BUFFERSIZE];
+    int tokenBufferLen = 0;
 
-    while (token) {
-        tokens[pos++] = token;
-        token = strtok(NULL, DELIM);
+    bool withinQuotes = false;
+    char lastQuote = 0;
 
-        if (pos >= bufferSize) {
-            bufferSize += BUFFERSIZE;
-            tokens = Realloc(tokens, bufferSize * sizeof(char *));
+    for (size_t i = 0; i < lineLen; i++) {
+        char c = line[i];
+
+        if (c == '\'' || c == '"') {
+            if (withinQuotes && c == lastQuote) {
+                withinQuotes = false;
+                tokenBuffer[tokenBufferLen] = '\0';
+                tokens[(*tokenCount)++] = strdup(tokenBuffer);
+                if ((*tokenCount) >= bufferSize) {
+                    bufferSize *= 2;
+                    tokens = Realloc(tokens, bufferSize * sizeof(char *));
+                }
+                tokenBufferLen = 0;
+                continue;
+            }
+
+            if (!withinQuotes) {
+                withinQuotes = true;
+                lastQuote = c;
+                continue;
+            }
         }
+
+        if (isspace(c) && !withinQuotes) {
+            if (tokenBufferLen > 0) {
+                tokenBuffer[tokenBufferLen] = '\0';
+                tokens[(*tokenCount)++] = strdup(tokenBuffer);
+                if (*tokenCount >= bufferSize) {
+                    bufferSize *= 2;
+                    tokens = Realloc(tokens, bufferSize * sizeof(char *));
+                }
+                tokenBufferLen = 0;
+            }
+            continue;
+        }
+
+        tokenBuffer[tokenBufferLen++] = c;
     }
 
-    tokens[pos] = NULL;
+    if (tokenBufferLen > 0) {
+        tokenBuffer[tokenBufferLen] = '\0';
+        tokens[(*tokenCount)++] = strdup(tokenBuffer);
+    }
+
+    tokens[*tokenCount] = NULL;
     return tokens;
 }
 
@@ -121,29 +162,25 @@ bool check_builtins(char**argv) {
     return false;
 }
 
-char ***split_pipes(char **tokens, size_t *count) {
-    int bufferSize = BUFFERSIZE;
+char ***split_pipes(char **tokens, size_t tokenCount, size_t *commandCount) {
+    *commandCount = 0;
+    int bufferSize = MIN_LISTSIZE;
     char ***commands = Malloc(bufferSize * sizeof(char **));
-    size_t tokenPos = 0;
-    size_t commandPos = 0;
     
-    while (tokens[tokenPos] != NULL) {
+    for (size_t i = 0; i < tokenCount; i++) {
         char **argv = Malloc(16 * sizeof(char *));
-        size_t i = 0;
-        for (; tokens[tokenPos] != NULL && strcmp(tokens[tokenPos], "|") != 0; i++, tokenPos++) {
-            argv[i] = tokens[tokenPos];
+        size_t j = 0;
+        for (; tokens[i] != NULL && strcmp(tokens[i], "|") != 0; j++, i++) {
+            argv[j] = tokens[i];
         }
-        if (tokens[tokenPos] != NULL && strcmp(tokens[tokenPos], "|") == 0) tokenPos++;
-        argv[i] = NULL;
-        commands[commandPos++] = argv;
+        argv[j] = NULL;
+        commands[(*commandCount)++] = argv;
 
-        if (commandPos >= bufferSize) {
-            bufferSize += BUFFERSIZE;
+        if (*commandCount >= bufferSize) {
+            bufferSize *= 2;
             commands = Realloc(commands, bufferSize * sizeof(char **));
         }
     }
-    commands[commandPos] = NULL;
-    *count = commandPos;
     return commands;
 }
 
@@ -154,7 +191,7 @@ void close_pipes(int pipes[][2], int pipeCount) {
     }
 }
 
-void execute_pipeline(char ***commands, int commandCount) {
+void execute_pipeline(char ***commands, size_t commandCount) {
     int pipeCount = commandCount - 1;
     int pipes[pipeCount][2];
     pid_t pids[commandCount];
@@ -264,16 +301,44 @@ int main(void) {
 
         add_history(expanded);
 
-        char **tokens = split_line(expanded);
+        size_t baseTokenCount = 0;
+        char **baseTokens = tokenize(expanded, &baseTokenCount);
+
+        char **tokens = baseTokens;
+        int tokenCount = baseTokenCount;
+
+        if (tokens[0] == NULL) {
+            free(tokens);
+            free(expanded);
+            free(input);
+            continue;
+        }
 
         for (int i = 0; i < alias_count; i++) {
-            if (aliases[i].key && strcmp(tokens[0], aliases[i].key) == 0) {
-                tokens[0] = strdup(aliases[i].value);
+            if (aliases[i].key && strcmp(baseTokens[0], aliases[i].key) == 0) {
+                size_t aliasTokenCount;
+                char **aliasTokens = tokenize(aliases[i].value, &aliasTokenCount);
+                tokenCount = baseTokenCount + aliasTokenCount;
+                tokens = Malloc(tokenCount * sizeof(char *));
+
+                for (int j = 0; j < aliasTokenCount; j++) {
+                    tokens[j] = aliasTokens[j];
+                }
+
+                for (int j = 1; j < baseTokenCount; j++) { // skip alias in tokens[0]
+                    tokens[aliasTokenCount + j - 1] = baseTokens[j];
+                }
+
+                tokens[tokenCount - 1] = NULL;
+
+                free(baseTokens);
+                free(aliasTokens);
+                break;
             }
         }
 
-        size_t commandCount;
-        char ***commands = split_pipes(tokens, &commandCount);
+        size_t commandCount = 0;
+        char ***commands = split_pipes(tokens, tokenCount, &commandCount);
 
         bool handled = false;
 
