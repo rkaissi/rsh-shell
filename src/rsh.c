@@ -146,7 +146,7 @@ bool check_builtins(char**argv) {
 
     if (strcmp(argv[0], "unalias") == 0 && argv[1] != NULL) {
         // Unalias all
-        if (strcmp(argv, "-a") == 0) {
+        if (strcmp(argv[1], "-a") == 0) {
             for (int i = 0; i < alias_count; i++) {
                 free(aliases[i].key);
                 free(aliases[i].value);
@@ -157,7 +157,7 @@ bool check_builtins(char**argv) {
 
         // Unalias specific
         for (int i = 0; i < alias_count; i++) {
-            if (aliases[i].key && strcmp(aliases[i].key, argv) == 0) {
+            if (aliases[i].key && strcmp(aliases[i].key, argv[1]) == 0) {
                 free(aliases[i].key);
                 free(aliases[i].value);
                 
@@ -210,7 +210,9 @@ void execute_pipeline(char ***commands, size_t commandCount) {
     pid_t pids[commandCount];
 
     for (int i = 0; i < pipeCount; i++) {
-        pipe(pipes[i]);
+        if (pipe(pipes[i]) == -1) {
+            err("Pipe failed");
+        }
     }
 
     for (int i = 0; i < commandCount; i++)
