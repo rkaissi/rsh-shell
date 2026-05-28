@@ -211,7 +211,12 @@ void execute_pipeline(char ***commands, size_t commandCount) {
 
     for (int i = 0; i < pipeCount; i++) {
         if (pipe(pipes[i]) == -1) {
-            err("Pipe failed");
+            err("Pipeline execution failed");
+            for (int j = 0; j < i; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            return;
         }
     }
 
