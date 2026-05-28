@@ -102,7 +102,7 @@ char **tokenize(char *line, size_t *tokenCount) {
     return tokens;
 }
 
-bool check_builtins(char**argv) {
+bool handle_builtins(char**argv) {
     if (argv[0] == NULL) {
         return true;
     }
@@ -179,6 +179,11 @@ bool check_builtins(char**argv) {
             }
         }
         
+        return true;
+    }
+
+    if (strcmp(argv[0], "source") == 0 && argv[1] != NULL) {
+        execute_script(argv[1]);
         return true;
     }
 
@@ -275,6 +280,7 @@ void print_banner() {
            "██║  ██║███████║██║  ██║\n"
            "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝\n"
            "\n"RST);
+    fflush(stdout);
 }
 
 void execute_line(char *line) {
@@ -318,7 +324,7 @@ void execute_line(char *line) {
     bool handled = false;
 
     if (commandCount == 1)
-        handled = check_builtins(commands[0]);
+        handled = handle_builtins(commands[0]);
 
     if (!handled)
         execute_pipeline(commands, commandCount);
@@ -335,7 +341,7 @@ void execute_line(char *line) {
     free(commands);
 }
 
-void load_rshrc(char *path) {
+void execute_script(char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL)
         return;
@@ -370,7 +376,7 @@ int main(void) {
         // Run .rshrc file on startup if it exists
         char rshrcPath[RSHRC_PATH_BUFFERSIZE];
         snprintf(rshrcPath, sizeof(rshrcPath), "%s" RSHRC_FILE, getenv("HOME"));
-        load_rshrc(rshrcPath);
+        execute_script(rshrcPath);
     }
 
     while (1) {

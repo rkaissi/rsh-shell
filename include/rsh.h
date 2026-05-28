@@ -18,4 +18,6 @@ typedef struct {
     char *value;
 } Alias;
 
+void execute_script(char *path);
+
 #endif
