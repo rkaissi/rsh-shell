@@ -246,58 +246,78 @@ void print_banner() {
 }
 
 int main(void) {
-    print_banner();
+    int interactive = isatty(STDIN_FILENO);
 
-    // Configure readline to auto-complete paths when the tab key is hit
-    rl_bind_key('\t', rl_complete);
+    if (interactive) {
+        print_banner();
 
-    // Enable history and read from file
-    snprintf(HISTORY_PATH, sizeof(HISTORY_PATH), "%s" HISTORY_FILE, getenv("HOME"));
+        // Configure readline to auto-complete paths when the tab key is hit
+        rl_bind_key('\t', rl_complete);
 
-    using_history();
-    stifle_history(1000);
-    read_history(HISTORY_PATH);
+        // Enable history and read from file
+        snprintf(HISTORY_PATH, sizeof(HISTORY_PATH), "%s" HISTORY_FILE, getenv("HOME"));
+
+        using_history();
+        stifle_history(1000);
+        read_history(HISTORY_PATH);
+    }
 
     while (1) {
-        char *pwd = getcwd(NULL, 0);
-        char prompt[strlen(pwd) + 32];
-        snprintf(prompt, sizeof(prompt), GREEN"%s $ "RST, pwd);
-        free(pwd);
+        char *input = NULL;
 
-        char *input = readline(prompt);
+        if (interactive) {
+            char *pwd = getcwd(NULL, 0);
+            char prompt[strlen(pwd) + 32];
+            snprintf(prompt, sizeof(prompt), GREEN"%s $ "RST, pwd);
+            free(pwd);
+            input = readline(prompt);
+        } else {
+            size_t len = 0;
+            if (getline(&input, &len, stdin) == -1) {
+                if (ferror(stdin)) {
+                    err("Error");
+                    exit(EXIT_FAILURE);
+                } else if (feof(stdin)) {
+                    break;
+                }
+            }
+        }
 
         // Check for EOF
         if (!input) {
-            printf(RED "[Exit]\n" RST);
+            if (interactive) printf(RED "[Exit]\n" RST);
             break;
         }
 
-        char *expanded;
-        int result = history_expand(input, &expanded);
+        char *expanded = input;
 
-        // Expanded
-        if (result == 1) {
-            printf(YELLOW"%s\n"RST, expanded);
-            fflush(stdout);
+        if (interactive) {
+            int result = history_expand(input, &expanded);
+
+            // Expanded
+            if (result == 1) {
+                printf(YELLOW"%s\n"RST, expanded);
+                fflush(stdout);
+            }
+
+            // Error expanding
+            if (result == -1) {
+                err(expanded);  // expanded contains the error message in this case
+                free(expanded);
+                free(input);
+                continue;
+            }
+
+            // Display only (e.g. user typed :p suffix), don't execute
+            if (result == 2) {
+                printf("%s\n", expanded);
+                free(expanded);
+                free(input);
+                continue;
+            }
+
+            add_history(expanded);
         }
-
-        // Error expanding
-        if (result == -1) {
-            err(expanded);  // expanded contains the error message in this case
-            free(expanded);
-            free(input);
-            continue;
-        }
-
-        // Display only (e.g. user typed :p suffix), don't execute
-        if (result == 2) {
-            printf("%s\n", expanded);
-            free(expanded);
-            free(input);
-            continue;
-        }
-
-        add_history(expanded);
 
         size_t baseTokenCount = 0;
         char **baseTokens = tokenize(expanded, &baseTokenCount);
@@ -352,10 +372,12 @@ int main(void) {
         
         free(tokens);
         free(commands);
-        free(expanded);
+        if (expanded != input) free(expanded);
         free(input);
     }
 
-    write_history(HISTORY_PATH);
+    if (interactive)
+        write_history(HISTORY_PATH);
+
     return EXIT_SUCCESS;
 }
