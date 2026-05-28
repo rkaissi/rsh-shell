@@ -13,8 +13,6 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-// TODO: Add custom tokenization to support quotes (strip quotes, but keep together disregarding space)
-// e.g. cd "C Projects" -> ["cd", "C Projects"] or alias ll="ls -l" -> ["alias", "ll=ls -l"]
 // Potentially free aliases and use custom hashmap instead
 // Add support for multiline commands with backslash at end (newline starts with "> ")
 
