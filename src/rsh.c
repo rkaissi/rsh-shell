@@ -13,15 +13,16 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-// TODO:
 /*
-* Potentially free aliases and use custom hashmap instead
-* Add support for multiline commands with backslash at end (newline starts with "> ")
-* Add support for environment variable expansion (like $USER or $?)
-* Add support for I/O redirection (>, <, >>)
-* Implement ~ (tilde) expanding to $HOME
-* Syntax highlighting using rl_redisplay_function (optional)
-* Custom prompt with git branch (e.g. "~/projects/rsh (main) $")
+TODO:
+  - Potentially free aliases and use custom hashmap instead
+  - Add support for multiline commands with backslash at end (newline starts with "> ")
+  - Add support for environment variable expansion (like $USER or $?)
+  - Add support for I/O redirection (>, <, >>)
+  - Implement ~ (tilde) expanding to $HOME
+  - Syntax highlighting using rl_redisplay_function (optional)
+  - Custom prompt with git branch (e.g. "~/projects/rsh (main) $")
+  - Implement `which` builtin command (find and print on PATH)
 */
 
 
