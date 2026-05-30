@@ -2,6 +2,7 @@
 #include "utils.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -17,7 +18,6 @@
 TODO:
   - Potentially free aliases and use custom hashmap instead
   - Add support for multiline commands with backslash at end (newline starts with "> ")
-  - Add support for environment variable expansion (like $USER or $?)
   - Add support for I/O redirection (>, <, >>)
   - Implement ~ (tilde) expanding to $HOME
   - Syntax highlighting using rl_redisplay_function (optional)
@@ -30,6 +30,8 @@ char HISTORY_PATH[HISTORY_PATH_BUFFERSIZE];
 
 Alias aliases[MAX_ALIAS_COUNT];
 int alias_count = 0;
+
+int last_exit_code = 0;
 
 char **tokenize(char *line, size_t *tokenCount) {
     *tokenCount = 0;
@@ -45,23 +47,70 @@ char **tokenize(char *line, size_t *tokenCount) {
     bool withinQuotes = false;
     char lastQuote = 0;
 
+    bool possibleEnvVar = false;
+
     for (size_t i = 0; i < lineLen; i++) {
         char c = line[i];
 
         // Ignore comments if outside quotes and first char of word to support `echo hello#world`
         if (c == '#' && !withinQuotes && tokenBufferLen == 0)
             break;
+        
+        if (c == '$' && lastQuote != '\'' && !possibleEnvVar) {
+            possibleEnvVar = true;
+            continue;
+        }
+
+        if (possibleEnvVar) {
+            possibleEnvVar = false;
+
+            if (isspace(c)) {
+                tokenBuffer[tokenBufferLen++] = '$';
+                // No continue, since needs to handle base space case as well
+            }
+
+            else if (c == '?') {
+                char exitCodeStr[12];
+                int len = 0;
+                snprintf(exitCodeStr, sizeof(exitCodeStr), "%d", last_exit_code);
+
+                while (exitCodeStr[len]) {
+                    tokenBuffer[tokenBufferLen++] = exitCodeStr[len++];
+                }
+                continue;
+            }
+
+            else if (c == '$') {
+                pid_t pid = getpid();
+                char pidStr[12]; 
+                int len = 0;
+                snprintf(pidStr, sizeof(pidStr), "%d", pid);
+                while (pidStr[len]) {
+                    tokenBuffer[tokenBufferLen++] = pidStr[len++];
+                }
+                continue;
+            }
+
+            else if (isalnum(c) || c == '_') {
+                char envVarName[TOKEN_BUFFERSIZE];
+                int len = 0;
+                while (i < lineLen && (isalnum(line[i]) || line[i] == '_')) {
+                    envVarName[len++] = line[i++];
+                }
+                envVarName[len] = '\0';
+                i--;
+                char *val = getenv(envVarName);
+                if (val) {
+                    while (*val) tokenBuffer[tokenBufferLen++] = *val++;
+                }
+                continue;
+            }
+        }
 
         if (c == '\'' || c == '"') {
             if (withinQuotes && c == lastQuote) {
                 withinQuotes = false;
-                tokenBuffer[tokenBufferLen] = '\0';
-                tokens[(*tokenCount)++] = strdup(tokenBuffer);
-                if ((*tokenCount) >= bufferSize) {
-                    bufferSize *= 2;
-                    tokens = Realloc(tokens, bufferSize * sizeof(char *));
-                }
-                tokenBufferLen = 0;
+                lastQuote = 0;
                 continue;
             }
 
@@ -95,6 +144,10 @@ char **tokenize(char *line, size_t *tokenCount) {
         }
 
         tokenBuffer[tokenBufferLen++] = c;
+    }
+
+    if (possibleEnvVar) {
+        tokenBuffer[tokenBufferLen++] = '$';
     }
 
     if (tokenBufferLen > 0) {
@@ -253,8 +306,12 @@ void execute_pipeline(char ***commands, size_t commandCount) {
             char **argv = commands[i];
             execvp(argv[0], argv);
             err(argv[0]);
-            write_history(HISTORY_PATH);
-            exit(EXIT_FAILURE);
+            if (errno == ENOENT)
+                exit(127);
+            else if (errno == EACCES)
+                exit(126);
+            else
+                exit(EXIT_FAILURE);
         } else if (pid == -1) { // fork failed
             err("Failed to run process");
         } else { // parent, pid = child's pid
@@ -271,6 +328,7 @@ void execute_pipeline(char ***commands, size_t commandCount) {
         if (!WIFEXITED(status)) {
             err("Process termination error");
         }
+        last_exit_code = WEXITSTATUS(status);
     }
 }
 
@@ -290,7 +348,7 @@ void execute_line(char *line) {
     size_t baseTokenCount = 0;
     char **baseTokens = tokenize(line, &baseTokenCount);
 
-    if (baseTokenCount == 0) {
+    if (baseTokenCount == 0 || baseTokens == NULL) {
         free(baseTokens);
         return;
     }
