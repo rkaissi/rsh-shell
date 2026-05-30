@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sysexits.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <stdbool.h>
@@ -26,12 +27,12 @@ STRETCH:
 */
 
 
-char HISTORY_PATH[HISTORY_PATH_BUFFERSIZE];
+static char history_path[HISTORY_PATH_BUFFERSIZE];
 
-Alias aliases[MAX_ALIAS_COUNT];
-int alias_count = 0;
+static Alias aliases[MAX_ALIAS_COUNT];
+static int alias_count = 0;
 
-int last_exit_code = 0;
+static int exit_status = 0;
 
 char **tokenize(char *line, size_t *tokenCount) {
     *tokenCount = 0;
@@ -80,7 +81,7 @@ char **tokenize(char *line, size_t *tokenCount) {
             else if (c == '?') {
                 char exitCodeStr[12];
                 int len = 0;
-                snprintf(exitCodeStr, sizeof(exitCodeStr), "%d", last_exit_code);
+                snprintf(exitCodeStr, sizeof(exitCodeStr), "%d", exit_status);
 
                 while (exitCodeStr[len]) {
                     tokenBuffer[tokenBufferLen++] = exitCodeStr[len++];
@@ -172,26 +173,30 @@ bool handle_builtins(char**argv) {
     }
 
     if (strcmp(argv[0], "cd") == 0) {
+        exit_status = 0;
         if (argv[1] == NULL) {
             argv[1] = getenv("HOME");
         }
 
         if (chdir(argv[1]) != 0) {
             err(argv[1]);
+            exit_status = 1;
         }
         return true;
     }
     
     if (strcmp(argv[0], "exit") == 0) {
         printf(RED"[Exit]\n"RST);
-        write_history(HISTORY_PATH);
+        write_history(history_path);
         exit(EXIT_SUCCESS);
         return true;
     }
     
     if (strcmp(argv[0], "alias") == 0 && argv[1] != NULL) {
+        exit_status = 0;
         if (alias_count >= 256) {
             printf(RED"Exceeded max alias count of %d\n"RST, MAX_ALIAS_COUNT);
+            exit_status = 1;
             return true;
         }
 
@@ -199,6 +204,7 @@ bool handle_builtins(char**argv) {
 
         if (delimPtr == NULL) {
             printf(RED"Alias not assigned correctly\n"RST);
+            exit_status = 1;
             return true;
         }
         *delimPtr = '\0';
@@ -219,6 +225,7 @@ bool handle_builtins(char**argv) {
     }
 
     if (strcmp(argv[0], "unalias") == 0 && argv[1] != NULL) {
+        exit_status = 0;
         // Unalias all
         if (strcmp(argv[1], "-a") == 0) {
             for (int i = 0; i < alias_count; i++) {
@@ -247,6 +254,7 @@ bool handle_builtins(char**argv) {
     }
 
     if (strcmp(argv[0], "source") == 0 && argv[1] != NULL) {
+        exit_status = 0;
         execute_script(argv[1]);
         return true;
     }
@@ -312,6 +320,10 @@ void execute_pipeline(char ***commands, size_t commandCount) {
             close_pipes(pipes, pipeCount);
 
             char **argv = commands[i];
+            if (!argv || !argv[0]) {
+                fprintf(stderr, RED"Execvp: Invalid arguments\n"RST);
+                exit(EXIT_FAILURE);
+            }
             execvp(argv[0], argv);
             err(argv[0]);
             if (errno == ENOENT)
@@ -321,7 +333,8 @@ void execute_pipeline(char ***commands, size_t commandCount) {
             else
                 exit(EXIT_FAILURE);
         } else if (pid == -1) { // fork failed
-            err("Failed to run process");
+            err("Fork failed");
+            exit(EX_OSERR);
         } else { // parent, pid = child's pid
             pids[i] = pid;
             continue;
@@ -332,11 +345,21 @@ void execute_pipeline(char ***commands, size_t commandCount) {
 
     int status;
     for (int i = 0; i < commandCount; i++) {
-        waitpid(pids[i], &status, 0);
-        if (!WIFEXITED(status)) {
-            err("Process termination error");
+        if (waitpid(pids[i], &status, 0) == -1) {
+            err("Waitpid failed");
+            continue;
         }
-        last_exit_code = WEXITSTATUS(status);
+
+        if (!WIFEXITED(status)) {
+            fprintf(stderr, RED"Process termination error\n"RST);
+        }
+
+        if (i == commandCount - 1) {
+            if (WIFEXITED(status))
+                exit_status = WEXITSTATUS(status);
+            else
+                exit_status = WIFSIGNALED(status) ? 128 + WTERMSIG(status) : 1;
+        }
     }
 }
 
@@ -437,10 +460,10 @@ int main(void) {
         rl_bind_key('\t', rl_complete);
 
         // Enable history and read from file
-        snprintf(HISTORY_PATH, sizeof(HISTORY_PATH), "%s" HISTORY_FILE, getenv("HOME"));
+        snprintf(history_path, sizeof(history_path), "%s" HISTORY_FILE, getenv("HOME"));
         using_history();
         stifle_history(1000);
-        read_history(HISTORY_PATH);
+        read_history(history_path);
 
         // Run .rshrc file on startup if it exists
         char rshrcPath[RSHRC_PATH_BUFFERSIZE];
@@ -516,7 +539,7 @@ int main(void) {
     }
 
     if (interactive)
-        write_history(HISTORY_PATH);
+        write_history(history_path);
 
     return EXIT_SUCCESS;
 }
