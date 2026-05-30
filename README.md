@@ -9,6 +9,8 @@ A shell written in C for Linux and Unix systems. Covers process forking, pipe cr
 - Builtins: `cd`, `exit`, `alias`, `unalias`
 - Aliases with multi-token expansion (`alias ll="ls -l"`)
 - Quoted arguments (`cd "My Folder"`)
+- Environment variable expansion (`$HOME`, `$?`, `$$`)
+- Startup config file (`~/.rshrc`)
 - Command history with persistence (`~/.rsh_history`)
 - History expansion (`!!`, `!n`)
 - Tab completion
@@ -20,8 +22,6 @@ A shell written in C for Linux and Unix systems. Covers process forking, pipe cr
 
 ## Build
 
-Standard build:
-
 ```bash
 make
 ```
@@ -32,21 +32,7 @@ Debug build (enables `-Wall -Wextra` warnings and `-g` debug symbols):
 make DEBUG=1
 ```
 
-Clean build artifacts:
-
 ```bash
-make clean
-```
-
-## Usage
-
-```bash
-make        # build
 make run    # build and run
-```
-
-Or run directly:
-
-```bash
-./build/rsh
+make clean  # remove build artifacts
 ```
