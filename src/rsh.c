@@ -19,7 +19,6 @@ TODO:
   - Potentially free aliases and use custom hashmap instead
   - Add support for multiline commands with backslash at end (newline starts with "> ")
   - Add support for I/O redirection (>, <, >>)
-  - Implement ~ (tilde) expanding to $HOME
   - Syntax highlighting using rl_redisplay_function (optional)
   - Custom prompt with git branch (e.g. "~/projects/rsh (main) $")
   - Implement `which` builtin command (find and print on PATH)
@@ -55,6 +54,14 @@ char **tokenize(char *line, size_t *tokenCount) {
         // Ignore comments if outside quotes and first char of word to support `echo hello#world`
         if (c == '#' && !withinQuotes && tokenBufferLen == 0)
             break;
+        
+        if (c == '~' && !withinQuotes && tokenBufferLen == 0) {
+            char *val = getenv("HOME");
+            if (val) {
+                while (*val) tokenBuffer[tokenBufferLen++] = *val++;
+            }
+            continue;
+        }
         
         if (c == '$' && lastQuote != '\'' && !possibleEnvVar) {
             possibleEnvVar = true;
