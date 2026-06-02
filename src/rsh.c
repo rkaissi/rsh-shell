@@ -1,6 +1,3 @@
-#include "rsh.h"
-#include "utils.h"
-
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -15,10 +12,15 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+#include "rsh.h"
+#include "utils.h"
+#include "builtins.h"
+
 /*
 TODO:
 - Add support for I/O redirection (>, <, >>)
 - Add support for multiline commands with backslash at end (newline starts with "> ")
+- Implement arguments for "source filename [arguments]"
 
 STRETCH:
 - Syntax highlighting using rl_redisplay_function (optional)
@@ -27,10 +29,18 @@ STRETCH:
 */
 
 
-static char history_path[HISTORY_PATH_BUFFERSIZE];
+char history_path[HISTORY_PATH_BUFFERSIZE];
 
-static Alias aliases[MAX_ALIAS_COUNT];
-static int alias_count = 0;
+Alias aliases[MAX_ALIAS_COUNT];
+int alias_count = 0;
+
+static Builtin builtins[] = {
+    {.name = "cd", .func = builtin_cd},
+    {.name = "exit", .func = builtin_exit},
+    {.name = "alias", .func = builtin_alias},
+    {.name = "unalias", .func = builtin_unalias},
+    {.name = "source", .func = builtin_source},
+};
 
 static int exit_status = 0;
 
@@ -169,96 +179,18 @@ char **tokenize(char *line, size_t *tokenCount) {
 
 bool handle_builtins(char**argv) {
     if (argv[0] == NULL) {
+        exit_status = 0;
         return true;
     }
 
-    if (strcmp(argv[0], "cd") == 0) {
-        exit_status = 0;
-        if (argv[1] == NULL) {
-            argv[1] = getenv("HOME");
+    for (int i = 0; i < ARRAY_LEN(builtins); i++) {
+        if (strcmp(argv[0], builtins[i].name) == 0) {
+            int status = builtins[i].func(argv);
+            exit_status = status;
+            return true;
         }
-
-        if (chdir(argv[1]) != 0) {
-            err(argv[1]);
-            exit_status = 1;
-        }
-        return true;
     }
     
-    if (strcmp(argv[0], "exit") == 0) {
-        printf(RED"[Exit]\n"RST);
-        write_history(history_path);
-        exit(EXIT_SUCCESS);
-        return true;
-    }
-    
-    if (strcmp(argv[0], "alias") == 0 && argv[1] != NULL) {
-        exit_status = 0;
-        if (alias_count >= 256) {
-            printf(RED"Exceeded max alias count of %d\n"RST, MAX_ALIAS_COUNT);
-            exit_status = 1;
-            return true;
-        }
-
-        char *delimPtr = strchr(argv[1], '=');
-
-        if (delimPtr == NULL) {
-            printf(RED"Alias not assigned correctly\n"RST);
-            exit_status = 1;
-            return true;
-        }
-        *delimPtr = '\0';
-        char *key = argv[1];
-        char *val = delimPtr + 1;
-
-        for (int i = 0; i < alias_count; i++) {
-            if (aliases[i].key && strcmp(aliases[i].key, argv[1]) == 0) {
-                free(aliases[i].key);
-                free(aliases[i].value);
-                aliases[i] = (Alias){strdup(key), strdup(val)};
-                return true;
-            }
-        }
-
-        aliases[alias_count++] = (Alias){strdup(key), strdup(val)};
-        return true;
-    }
-
-    if (strcmp(argv[0], "unalias") == 0 && argv[1] != NULL) {
-        exit_status = 0;
-        // Unalias all
-        if (strcmp(argv[1], "-a") == 0) {
-            for (int i = 0; i < alias_count; i++) {
-                free(aliases[i].key);
-                free(aliases[i].value);
-            }
-            alias_count = 0;
-            return true;
-        }
-
-        // Unalias specific
-        for (int i = 0; i < alias_count; i++) {
-            if (aliases[i].key && strcmp(aliases[i].key, argv[1]) == 0) {
-                free(aliases[i].key);
-                free(aliases[i].value);
-                
-                for (int j = i; j < alias_count - 1; j++) {
-                    aliases[j] = aliases[j + 1];
-                }
-                alias_count--;
-                return true;
-            }
-        }
-        
-        return true;
-    }
-
-    if (strcmp(argv[0], "source") == 0 && argv[1] != NULL) {
-        exit_status = 0;
-        execute_script(argv[1]);
-        return true;
-    }
-
     return false;
 }
 
@@ -433,10 +365,10 @@ void execute_line(char *line) {
     free(commands);
 }
 
-void execute_script(char *path) {
+int execute_script(char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL)
-        return;
+        return 1;
     
     char *line = NULL;
     size_t len = 0;
@@ -448,6 +380,7 @@ void execute_script(char *path) {
     }
     free(line);
     fclose(fp);
+    return 0;
 }
 
 int main(void) {
