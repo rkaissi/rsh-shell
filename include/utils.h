@@ -28,6 +28,8 @@
 #define DIM       "\033[2m"
 #define UNDERLINE "\033[4m"
 
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
+
 void *Malloc(size_t size);
 void *Realloc(void *block, size_t size);
 
