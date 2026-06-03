@@ -245,7 +245,7 @@ int builtin_banner(char **argv) {
         }
     }
 
-    if (!valid_color) {
+    if (color_name && !valid_color) {
         fprintf(stderr, RED"%s: '%s' not a valid color. Valid colors: ", argv[0], color_name);
         for (int i = 0; i < ARRAY_LEN(colors); i++) {
             fprintf(stderr, "%s", colors[i].name);
