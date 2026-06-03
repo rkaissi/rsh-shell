@@ -18,11 +18,6 @@ typedef struct {
     char *value;
 } Alias;
 
-typedef struct {
-    const char *name;
-    int (*func)(char **argv);
-} Builtin;
-
 int execute_script(char *path);
 
 #endif

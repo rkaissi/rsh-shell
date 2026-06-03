@@ -9,23 +9,58 @@
 #include "builtins.h"
 #include "utils.h"
 
-int builtin_cd(char **argv)  {
-    if (argv[1] == NULL) {
-        argv[1] = getenv("HOME");
+const Builtin builtins[] = {
+    {.name = "cd", .func = builtin_cd, .description = "Change the shell working directory", .usage = "cd [dir]"},
+    {.name = "exit", .func = builtin_exit, .description = "Exit the shell", .usage = "exit [n]"},
+    {.name = "alias", .func = builtin_alias, .description = "Define or display aliases", .usage = "alias [name[=value] ... ]"},
+    {.name = "unalias", .func = builtin_unalias, .description = "Remove from the list of defined aliases", .usage = "unalias [-a] name [name ...]"},
+    {.name = "source", .func = builtin_source, .description = "Execute commands from a file in the current shell", .usage = "source filename"},
+};
+
+const int builtin_count = ARRAY_LEN(builtins);
+
+const char *get_usage(const char *builtin_name) {
+    for (int i = 0; i < ARRAY_LEN(builtins); i++) {
+        if (strcmp(builtins[i].name, builtin_name) == 0) {
+            return builtins[i].usage;
+        }
     }
 
-    if (chdir(argv[1]) != 0) {
-        err(argv[1]);
+    return NULL;
+}
+
+void print_usage_error(const char *name) {
+    const char *usage = get_usage(name);
+    if (usage)
+        fprintf(stderr, RED"%s: usage: %s\n"RST, name, usage);
+}
+
+int builtin_cd(char **argv)  {
+    char *path = argv[1] ? argv[1] : getenv("HOME");
+    
+    if (path == NULL) {
+        fprintf(stderr, RED"%s: HOME not set\n"RST, argv[0]);
+        return 1;
+    }
+
+    if (chdir(path) != 0) {
+        err(argv[0]);
         return 1;
     }
     return 0;
 }
 
 int builtin_exit(char **argv) {
-    printf(RED"[Exit]\n"RST);
+    char *end;
+    long exit_code = argv[1] ? strtol(argv[1], &end, 10) : EXIT_SUCCESS;
+    if (argv[1] && *end != '\0') {
+        fprintf(stderr, RED"%s: %s: numeric argument required\n"RST, argv[0], argv[1]);
+        print_usage_error(argv[0]);
+    }
     write_history(history_path);
-    exit(EXIT_SUCCESS);
-    return 0;
+    printf(RED"[Exit]\n"RST);
+    exit(exit_code % (ERROR_CODES + 1));
+    return exit_code;
 }
 
 int builtin_alias(char **argv) {
@@ -44,7 +79,7 @@ int builtin_alias(char **argv) {
     char *delimPtr = strchr(argv[1], '=');
 
     if (delimPtr == NULL) {
-        fprintf(stderr, RED"Alias not assigned correctly\n"RST);
+        print_usage_error(argv[0]);
         return 2;
     }
     *delimPtr = '\0';
@@ -66,7 +101,7 @@ int builtin_alias(char **argv) {
 
 int builtin_unalias(char **argv) {
     if (argv[1] == NULL) {
-        fprintf(stderr, RED"%s: usage: unalias [-a] name [name ...]\n"RST, argv[0]);
+        print_usage_error(argv[0]);
         return 2;
     }
 
@@ -99,7 +134,7 @@ int builtin_unalias(char **argv) {
 
 int builtin_source(char **argv) {
     if (argv[1] == NULL) {
-        fprintf(stderr, RED"%s: usage: source filename\n"RST, argv[0]);
+        print_usage_error(argv[0]);
         return 2;
     }
 

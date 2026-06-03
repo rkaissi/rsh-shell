@@ -36,14 +36,6 @@ char history_path[HISTORY_PATH_BUFFERSIZE];
 Alias aliases[MAX_ALIAS_COUNT];
 int alias_count = 0;
 
-static Builtin builtins[] = {
-    {.name = "cd", .func = builtin_cd},
-    {.name = "exit", .func = builtin_exit},
-    {.name = "alias", .func = builtin_alias},
-    {.name = "unalias", .func = builtin_unalias},
-    {.name = "source", .func = builtin_source},
-};
-
 static int exit_status = 0;
 
 char **tokenize(char *line, size_t *tokenCount) {
@@ -185,7 +177,7 @@ bool handle_builtins(char**argv) {
         return true;
     }
 
-    for (int i = 0; i < ARRAY_LEN(builtins); i++) {
+    for (int i = 0; i < builtin_count; i++) {
         if (strcmp(argv[0], builtins[i].name) == 0) {
             int status = builtins[i].func(argv);
             exit_status = status;
