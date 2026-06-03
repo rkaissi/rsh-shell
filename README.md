@@ -67,3 +67,9 @@ Or after installing:
 ```bash
 rsh
 ```
+
+Run as root:
+
+```bash
+sudo rsh
+```
