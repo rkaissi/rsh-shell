@@ -380,7 +380,7 @@ int main(void) {
         // Enable history and read from file
         snprintf(history_path, sizeof(history_path), "%s" HISTORY_FILE, getenv("HOME"));
         using_history();
-        stifle_history(1000);
+        stifle_history(HISTSIZE);
         read_history(history_path);
 
         // Run .rshrc file on startup if it exists
@@ -395,7 +395,7 @@ int main(void) {
         if (interactive) {
             char *pwd = getcwd(NULL, 0);
             char prompt[strlen(pwd) + 32];
-            snprintf(prompt, sizeof(prompt), GREEN"%s $ "RST, pwd);
+            snprintf(prompt, sizeof(prompt), RL_S GREEN RL_E"%s $ "RL_S RST RL_E, pwd);
             free(pwd);
             input = readline(prompt);
         } else {

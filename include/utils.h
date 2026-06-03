@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define RL_S "\001"  // start of non-printing sequence
+#define RL_E "\002"  // end of non-printing sequence
+
 #define RST     "\033[0m"
 
 #define BLACK   "\033[30m"
