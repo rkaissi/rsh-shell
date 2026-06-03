@@ -8,7 +8,8 @@ A shell written in C for Linux and Unix systems. Covers process forking, pipe cr
 
 - Command execution via `fork` + `execvp`
 - Pipelines (`ls | grep foo | wc -l`)
-- Builtins: `cd`, `exit`, `alias`, `unalias`
+- Builtins: `cd`, `exit [n]`, `alias`, `unalias`, `source`, `help`, `banner`
+- `help [-du] [pattern]` — list builtins with descriptions and usage
 - Aliases with multi-token expansion (`alias ll="ls -l"`)
 - Quoted arguments (`cd "My Folder"`)
 - Environment variable expansion (`$HOME`, `$?`, `$$`)
