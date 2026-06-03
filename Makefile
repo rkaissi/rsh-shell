@@ -13,7 +13,7 @@ endif
 
 CFLAGS += -MMD -MP
 
-.PHONY: all clean run
+.PHONY: all clean run install uninstall
 
 all: $(TARGET)
 
@@ -28,6 +28,12 @@ build:
 
 run: $(TARGET)
 	./$(TARGET)
+
+install: $(TARGET)
+	sudo ln -sf "$(abspath $(TARGET))" /usr/bin/rsh
+
+uninstall:
+	sudo rm -f /usr/bin/rsh
 
 clean:
 	rm -rf build

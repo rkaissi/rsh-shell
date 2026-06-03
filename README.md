@@ -36,6 +36,34 @@ make DEBUG=1
 ```
 
 ```bash
-make run    # build and run
-make clean  # remove build artifacts
+make run       # build and run
+make clean     # remove build artifacts
+```
+
+## Install
+
+Add `rsh` to your PATH via a symlink to `/usr/bin`:
+
+```bash
+make install
+```
+
+To remove it:
+
+```bash
+make uninstall
+```
+
+## Usage
+
+Run directly:
+
+```bash
+./build/rsh
+```
+
+Or after installing:
+
+```bash
+rsh
 ```

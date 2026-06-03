@@ -207,7 +207,10 @@ int builtin_source(char **argv) {
         return 2;
     }
 
-    return execute_script(argv[1]);
+    int status = execute_script(argv[1]);
+    if (status == 1)
+        err(argv[1]);
+    return status;
 }
 
 static const struct { const char *name; const char *code; } colors[] = {

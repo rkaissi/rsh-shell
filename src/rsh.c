@@ -353,7 +353,6 @@ void execute_line(char *line) {
 int execute_script(char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
-        err(path);
         return 1;
     }
     
