@@ -20,11 +20,13 @@
 TODO:
 - Add support for I/O redirection (>, <, >>)
 - Add support for multiline commands with backslash at end (newline starts with "> ")
-- Implement arguments for "source filename [arguments]"
 
 STRETCH:
 - Syntax highlighting using rl_redisplay_function (optional)
 - Custom prompt with git branch (e.g. "~/projects/rsh (main) $")
+- Positional arguments ($1, $2)
+- Implement arguments for "source filename [arguments]"
+- Scripting, functions, loops, if, etc.
 - Potentially free aliases and use custom hashmap instead
 */
 
@@ -367,8 +369,10 @@ void execute_line(char *line) {
 
 int execute_script(char *path) {
     FILE *fp = fopen(path, "r");
-    if (fp == NULL)
+    if (fp == NULL) {
+        err(path);
         return 1;
+    }
     
     char *line = NULL;
     size_t len = 0;

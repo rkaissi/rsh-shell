@@ -99,7 +99,7 @@ int builtin_unalias(char **argv) {
 
 int builtin_source(char **argv) {
     if (argv[1] == NULL) {
-        fprintf(stderr, RED"%s: usage: source filename [arguments]\n"RST, argv[0]);
+        fprintf(stderr, RED"%s: usage: source filename\n"RST, argv[0]);
         return 2;
     }
 
