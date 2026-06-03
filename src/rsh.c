@@ -22,6 +22,7 @@ TODO:
 - Add support for multiline commands with backslash at end (newline starts with "> ")
 
 STRETCH:
+- Handle Ctrl+C interrupt
 - Allow unalias multiple names
 - Allow alias multiple assignments (and change usage to reflect that)
 - Syntax highlighting using rl_redisplay_function (optional)

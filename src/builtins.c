@@ -162,14 +162,14 @@ int builtin_unalias(char **argv) {
     }
 
     bool flag_a = false;
-    char *pattern = NULL;
+    char *name = NULL;
     for (int i = 1; argv[i] != NULL; i++) {
         if (argv[i][0] == '-') {
             for (int j = 1; argv[i][j]; j++) {
                 if (argv[i][j] == 'a') flag_a = true;
             }
         } else {
-            pattern = argv[i];
+            name = argv[i];
         }
     }
 
@@ -185,7 +185,7 @@ int builtin_unalias(char **argv) {
 
     // Unalias specific
     for (int i = 0; i < alias_count; i++) {
-        if (aliases[i].key && strcmp(aliases[i].key, pattern) == 0) {
+        if (aliases[i].key && strcmp(aliases[i].key, name) == 0) {
             free(aliases[i].key);
             free(aliases[i].value);
             
