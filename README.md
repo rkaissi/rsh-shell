@@ -2,6 +2,8 @@
 
 A shell written in C for Linux and Unix systems. Covers process forking, pipe creation, signal handling, and terminal I/O.
 
+![rsh shell preview](docs/assets/terminal-shell-1.png)
+
 ## Features
 
 - Command execution via `fork` + `execvp`
