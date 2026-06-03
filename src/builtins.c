@@ -10,6 +10,7 @@
 #include "utils.h"
 
 const Builtin builtins[] = {
+    {.name = "help", .func = builtin_help, .description = "Display information about builtin commands", .usage = "help [-du] builtin"},
     {.name = "cd", .func = builtin_cd, .description = "Change the shell working directory", .usage = "cd [dir]"},
     {.name = "exit", .func = builtin_exit, .description = "Exit the shell", .usage = "exit [n]"},
     {.name = "alias", .func = builtin_alias, .description = "Define or display aliases", .usage = "alias [name[=value] ... ]"},
@@ -35,7 +36,62 @@ void print_usage_error(const char *name) {
         fprintf(stderr, RED"%s: usage: %s\n"RST, name, usage);
 }
 
-int builtin_cd(char **argv)  {
+int builtin_help(char **argv) {
+    bool flag_d = false, flag_u = false;
+    char *pattern = NULL;
+    for (int i = 1; argv[i] != NULL; i++) {
+        if (argv[i][0] == '-') {
+            for (int j = 1; argv[i][j]; j++) {
+                if (argv[i][j] == 'd') flag_d = true;
+                else if (argv[i][j] == 'u') flag_u = true;
+            }
+        } else {
+            pattern = argv[i];
+        }
+    }
+
+    if (!pattern) {
+        int maxNameLen = 0;
+        for (int i = 0; i < builtin_count; i++) {
+            int len = strlen(builtins[i].name);
+            if (len > maxNameLen) maxNameLen = len;
+        }
+
+        int maxDescLen = 0;
+        for (int i = 0; i < builtin_count; i++) {
+            int len = strlen(builtins[i].description);
+            if (len > maxDescLen) maxDescLen = len;
+        }
+
+        for (int i = 0; i < builtin_count; i++) {
+            printf("%-*s", maxNameLen + COLUMN_OFFSET, builtins[i].name);
+            if (flag_d) printf("%-*s", maxDescLen + COLUMN_OFFSET, builtins[i].description);
+            if (flag_u) printf("%s", builtins[i].usage);
+            printf("\n");
+        }
+        return 0;
+    }
+
+    for (int i = 0; i < builtin_count; i++) {
+        if (strcmp(pattern, builtins[i].name) == 0) {
+            if (flag_u && !flag_d) {
+                printf("%s: %s\n", builtins[i].name, builtins[i].usage);
+            }
+            else if (flag_d && !flag_u) {
+                printf("%s - %s.\n", builtins[i].name, builtins[i].description);
+            }
+            else {
+                printf("%s: %s\n", builtins[i].name, builtins[i].usage);
+                printf("    %s\n", builtins[i].description);
+            }
+            return 0;
+        }
+    }
+    fprintf(stderr, RED"%s: no help topics match '%s'\n"RST, argv[0], pattern);
+    return 1;
+}
+
+int builtin_cd(char **argv) {
     char *path = argv[1] ? argv[1] : getenv("HOME");
     
     if (path == NULL) {
@@ -105,8 +161,20 @@ int builtin_unalias(char **argv) {
         return 2;
     }
 
+    bool flag_a = false;
+    char *pattern = NULL;
+    for (int i = 1; argv[i] != NULL; i++) {
+        if (argv[i][0] == '-') {
+            for (int j = 1; argv[i][j]; j++) {
+                if (argv[i][j] == 'a') flag_a = true;
+            }
+        } else {
+            pattern = argv[i];
+        }
+    }
+
     // Unalias all
-    if (strcmp(argv[1], "-a") == 0) {
+    if (flag_a) {
         for (int i = 0; i < alias_count; i++) {
             free(aliases[i].key);
             free(aliases[i].value);
@@ -117,7 +185,7 @@ int builtin_unalias(char **argv) {
 
     // Unalias specific
     for (int i = 0; i < alias_count; i++) {
-        if (aliases[i].key && strcmp(aliases[i].key, argv[1]) == 0) {
+        if (aliases[i].key && strcmp(aliases[i].key, pattern) == 0) {
             free(aliases[i].key);
             free(aliases[i].value);
             

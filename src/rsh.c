@@ -22,6 +22,8 @@ TODO:
 - Add support for multiline commands with backslash at end (newline starts with "> ")
 
 STRETCH:
+- Allow unalias multiple names
+- Allow alias multiple assignments (and change usage to reflect that)
 - Syntax highlighting using rl_redisplay_function (optional)
 - Custom prompt with git branch (e.g. "~/projects/rsh (main) $")
 - Positional arguments ($1, $2)

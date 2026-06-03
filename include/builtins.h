@@ -4,6 +4,7 @@
 #include "rsh.h"
 
 #define ERROR_CODES 255
+#define COLUMN_OFFSET 4
 
 typedef struct {
     const char *name;
@@ -15,6 +16,7 @@ typedef struct {
 extern const Builtin builtins[];
 extern const int builtin_count;
 
+int builtin_help(char **argv);
 int builtin_cd(char **argv);
 int builtin_exit(char **argv);
 int builtin_alias(char **argv);
