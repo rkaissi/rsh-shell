@@ -5,12 +5,11 @@
 #define MIN_LISTSIZE 4
 #define TOKEN_BUFFERSIZE 1024
 
-#define HISTSIZE 1000
+#define DEFAULT_BUFFERSIZE 256
 
-#define HISTORY_PATH_BUFFERSIZE 256
+#define HISTSIZE 1000
 #define HISTORY_FILE "/.rsh_history"
 
-#define RSHRC_PATH_BUFFERSIZE 256
 #define RSHRC_FILE "/.rshrc"
 
 #define MAX_ALIAS_COUNT 256

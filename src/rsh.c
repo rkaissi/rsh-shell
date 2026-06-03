@@ -34,7 +34,7 @@ STRETCH:
 */
 
 
-char history_path[HISTORY_PATH_BUFFERSIZE];
+char history_path[DEFAULT_BUFFERSIZE];
 
 Alias aliases[MAX_ALIAS_COUNT];
 int alias_count = 0;
@@ -370,6 +370,29 @@ int execute_script(char *path) {
     return 0;
 }
 
+char *build_prompt(void) {
+    char *pwd = getcwd(NULL, 0);
+    char *user = getenv("USER");
+    if (user == NULL) user = "?";
+    
+    char hostname[DEFAULT_BUFFERSIZE];
+    gethostname(hostname, sizeof(hostname));
+    
+    bool is_root = (getuid() == 0);
+    char *sigil_color = is_root ? RL_S RED RL_E : RL_S WHITE RL_E;
+    char sigil = is_root ? '#' : '$';
+    
+    char *prompt = Malloc(strlen(pwd) + DEFAULT_BUFFERSIZE);
+    snprintf(prompt, strlen(pwd) + DEFAULT_BUFFERSIZE,
+        RL_S GREEN RL_E "%s@%s" RL_S RST RL_E
+        ":" RL_S BLUE RL_E "%s" RL_S RST RL_E
+        "%s%c " RL_S RST RL_E,
+        user, hostname, pwd, sigil_color, sigil);
+    
+    free(pwd);
+    return prompt;
+}
+
 int main(void) {
     int interactive = isatty(STDIN_FILENO);
 
@@ -384,7 +407,7 @@ int main(void) {
         read_history(history_path);
 
         // Run .rshrc file on startup if it exists
-        char rshrcPath[RSHRC_PATH_BUFFERSIZE];
+        char rshrcPath[DEFAULT_BUFFERSIZE];
         snprintf(rshrcPath, sizeof(rshrcPath), "%s" RSHRC_FILE, getenv("HOME"));
         execute_script(rshrcPath);
     }
@@ -393,11 +416,9 @@ int main(void) {
         char *input = NULL;
 
         if (interactive) {
-            char *pwd = getcwd(NULL, 0);
-            char prompt[strlen(pwd) + 32];
-            snprintf(prompt, sizeof(prompt), RL_S GREEN RL_E"%s $ "RL_S RST RL_E, pwd);
-            free(pwd);
+            char *prompt = build_prompt();
             input = readline(prompt);
+            free(prompt);
         } else {
             size_t len = 0;
             if (getline(&input, &len, stdin) == -1) {
