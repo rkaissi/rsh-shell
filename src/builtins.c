@@ -16,6 +16,7 @@ const Builtin builtins[] = {
     {.name = "alias", .func = builtin_alias, .description = "Define or display aliases", .usage = "alias [name[=value] ... ]"},
     {.name = "unalias", .func = builtin_unalias, .description = "Remove from the list of defined aliases", .usage = "unalias [-a] name [name ...]"},
     {.name = "source", .func = builtin_source, .description = "Execute commands from a file in the current shell", .usage = "source filename"},
+    {.name = "banner", .func = builtin_banner, .description = "Prints the RSH shell banner", .usage = "banner [-c]"},
 };
 
 const int builtin_count = ARRAY_LEN(builtins);
@@ -207,4 +208,61 @@ int builtin_source(char **argv) {
     }
 
     return execute_script(argv[1]);
+}
+
+static const struct { const char *name; const char *code; } colors[] = {
+    {"blue",    BLUE},
+    {"green",   GREEN},
+    {"red",     RED},
+    {"yellow",  YELLOW},
+    {"cyan",    CYAN},
+    {"magenta", MAGENTA},
+    {"white",   WHITE},
+};
+
+int builtin_banner(char **argv) {
+    bool flag_c = false;
+    char *color_name = NULL;
+    for (int i = 1; argv[i] != NULL; i++) {
+        if (argv[i][0] == '-') {
+            for (int j = 1; argv[i][j]; j++) {
+                if (argv[i][j] == 'c') flag_c = true;
+            }
+        } else {
+            color_name = argv[i];
+        }
+    }
+
+    bool valid_color = false;
+    const char *color = BLUE;
+    if (flag_c && color_name) {
+        for (int i = 0; i < ARRAY_LEN(colors); i++) {
+            if (strcmp(colors[i].name, color_name) == 0) {
+                color = colors[i].code;
+                valid_color = true;
+                break;
+            }
+        }
+    }
+
+    if (!valid_color) {
+        fprintf(stderr, RED"%s: '%s' not a valid color. Valid colors: ", argv[0], color_name);
+        for (int i = 0; i < ARRAY_LEN(colors); i++) {
+            fprintf(stderr, "%s", colors[i].name);
+            if (i != ARRAY_LEN(colors) - 1)
+                fprintf(stderr, ", ");
+        }
+        fprintf(stderr, "\n"RST);
+    }
+
+    printf("%s\n"
+           "██████╗ ███████╗██╗  ██╗\n"
+           "██╔══██╗██╔════╝██║  ██║\n"
+           "██████╔╝███████╗███████║\n"
+           "██╔══██╗╚════██║██╔══██║\n"
+           "██║  ██║███████║██║  ██║\n"
+           "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝\n"
+           "\n"RST, color);
+    fflush(stdout);
+    return 0;
 }

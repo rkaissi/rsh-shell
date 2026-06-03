@@ -22,6 +22,7 @@ int builtin_exit(char **argv);
 int builtin_alias(char **argv);
 int builtin_unalias(char **argv);
 int builtin_source(char **argv);
+int builtin_banner(char **argv);
 
 extern char history_path[HISTORY_PATH_BUFFERSIZE];
 extern Alias aliases[MAX_ALIAS_COUNT];

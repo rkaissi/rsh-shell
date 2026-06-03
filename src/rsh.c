@@ -292,18 +292,6 @@ void execute_pipeline(char ***commands, size_t commandCount) {
     }
 }
 
-void print_banner() {
-    printf(BLUE"\n"
-           "██████╗ ███████╗██╗  ██╗\n"
-           "██╔══██╗██╔════╝██║  ██║\n"
-           "██████╔╝███████╗███████║\n"
-           "██╔══██╗╚════██║██╔══██║\n"
-           "██║  ██║███████║██║  ██║\n"
-           "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝\n"
-           "\n"RST);
-    fflush(stdout);
-}
-
 void execute_line(char *line) {
     size_t baseTokenCount = 0;
     char **baseTokens = tokenize(line, &baseTokenCount);
@@ -386,8 +374,6 @@ int main(void) {
     int interactive = isatty(STDIN_FILENO);
 
     if (interactive) {
-        print_banner();
-
         // Configure readline to auto-complete paths when the tab key is hit
         rl_bind_key('\t', rl_complete);
 
